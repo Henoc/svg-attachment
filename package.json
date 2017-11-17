@@ -1,0 +1,37 @@
+{
+  "name": "svg-attachment",
+  "version": "0.0.1",
+  "description": "utilities of svg",
+  "scripts": {
+    "prepublish": "npm run compile",
+    "compile": "tsc -p ./ && npm run bundle",
+    "bundle": "browserify build/SvgManager.js -o dest/svg-attachment.js",
+    "clean": "rimraf ./build/*",
+    "test": "npm run compile && browserify build/test.js -o test/test.js",
+    "lint": "tslint -c tslint.json \"src/**/*.ts\""
+  },
+  "files": [
+    "build"
+  ],
+  "author": "henoc",
+  "license": "MIT",
+  "main": "build/index.js",
+  "typings": "build/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Henoc/svg-attachment"
+  },
+  "dependencies": {
+    "@types/tinycolor2": "^1.4.0",
+    "tinycolor2": "^1.4.1",
+    "yaparsec": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^20.0.5",
+    "@types/jsdom": "^11.0.4",
+    "browserify": "^14.5.0",
+    "rimraf": "^2.6.1",
+    "tslint": "^5.4.3",
+    "typescript": "^2.3.4"
+  }
+}
