@@ -6,6 +6,8 @@ Tiny utility functions of SVG DOM.
 
 ## Usage
 
+typescript:
+
 ```typescript
 import {svgof} from "svg-attachment";
 
@@ -17,14 +19,6 @@ console.log(JSON.stringify(
 
 ## Contents
 
-### types
-
-- `Vec2 = [number, number]`
-- `TransformFn = { kind: TransformKinds; args: number[]; }`
-- `TransformKinds = "matrix" | "translate" | "scale" | "rotate" | "skewX" | "skewY"`
-- `Box = { leftTop: Vec2; rightBottom: Vec2; }`
-- `tinycolorInstance` is the instance by package tinycolor2.
-
 ### Functions of SvgManager
 
 Below functions are methods derived by `svgof(node: SVGElement)`. Many functions are getter and also setter.
@@ -34,7 +28,7 @@ Below functions are methods derived by `svgof(node: SVGElement)`. Many functions
 |attr(name: string, value?: string)|string \| undefined| Get or set attributes |
 |attrFn(name: string, fn: (v: string \| undefined) => string)|string \| undefined| Attributes setter which can use current value |
 |getBBox()|ClientRect|Get bounding box|
-|leftTop(vec2?: Vec2)|Vec2|Left top of shape. Getter is by BoundingClientRect method, so coordinates are **client** coordinate.|
+|leftTop(vec2?: Vec2)|Vec2|Left top of shape. Introduced by BoundingClientRect method, so coordinates are **client** coordinate.|
 |rightDown(vec2?: Vec2)|Vec2| |
 |center(vec2?: Vec2)|Vec2| |
 |size(vec2?: Vec2)|Vec2| Get and set width and height. Getter is by BoundingClientRect method. |
@@ -53,3 +47,11 @@ Below functions are methods derived by `collectionof(node: SVGElement[])`. It's 
 |zoom(ratio: Vec2)|void| |
 |size(vec2?: Vec2)|Vec2| |
 |getBox()|Box| Returns an object represents merged ClientRect |
+
+### Types
+
+- `Vec2 = [number, number]`
+- `TransformFn = { kind: TransformKinds; args: number[]; }`
+- `TransformKinds = "matrix" | "translate" | "scale" | "rotate" | "skewX" | "skewY"`
+- `Box = { leftTop: Vec2; rightBottom: Vec2; }`
+- `tinycolorInstance` is the instance by package tinycolor2.
