@@ -1,25 +1,23 @@
 import { Box, merge } from "./Box";
 import { Vec2, add, divdot, sub, muldot } from "../index";
-import { svgof } from "../SvgManager";
-import { moveof } from "../MoveManager";
-import { sizeof } from "../SizeManager";
+import { RootManager } from "../RootManager";
 
 /**
  * Utilities for set of SVGElement
  */
 export class CollectionManager {
 
-  constructor(public svgs: SVGElement[]) {
+  constructor(public root: RootManager, public svgs: SVGElement[]) {
   }
 
   private makeBox(): Box {
-    let clientRect = svgof(this.svgs[0]).getBBox();
+    let clientRect = this.root.svgof(this.svgs[0]).getBBox();
     let box = <Box> {
       leftTop: [clientRect.left, clientRect.top],
       rightBottom: [clientRect.right, clientRect.bottom]
     };
     for (let i = 1; i < this.svgs.length; i++) {
-      let rect = svgof(this.svgs[i]).getBBox();
+      let rect = this.root.svgof(this.svgs[i]).getBBox();
       let box2 = <Box> {
         leftTop: [rect.left, rect.top],
         rightBottom: [rect.right, rect.bottom]
@@ -29,26 +27,48 @@ export class CollectionManager {
     return box;
   }
 
+  leftTop(vec2?: Vec2): Vec2 {
+    if (vec2 === undefined) {
+      let box = this.makeBox();
+      return sub(box.leftTop, this.root.leftTop);
+    } else {
+      let delta = sub(vec2, this.leftTop());
+      this.svgs.forEach(s => this.root.moveof(s).move(delta));
+      return this.leftTop();
+    }
+  }
+
+  rightBottom(vec2?: Vec2): Vec2 {
+    if (vec2 === undefined) {
+      let box = this.makeBox();
+      return sub(box.rightBottom, this.root.leftTop);
+    } else {
+      let delta = sub(vec2, this.rightBottom());
+      this.svgs.forEach(s => this.root.moveof(s).move(delta));
+      return this.rightBottom();
+    }
+  }
+
   /**
    * Get and set the center of the group. This affects all of members.
    */
   center(vec2?: Vec2): Vec2 {
     if (vec2 === undefined) {
       let box = this.makeBox();
-      return divdot(add(box.leftTop, box.rightBottom), [2, 2]);
+      return sub(divdot(add(box.leftTop, box.rightBottom), [2, 2]), this.root.leftTop);
     } else {
       let delta = sub(vec2, this.center());
-      this.svgs.forEach(svg => moveof(svg).move(delta));
+      this.svgs.forEach(s => this.root.moveof(s).move(delta));
       return this.center();
     }
   }
 
   zoom(ratio: Vec2): void {
     let center = this.center();
-    this.svgs.forEach(svg => {
-      sizeof(svg).zoom(ratio);
-      let indivisual = svgof(svg).center();
-      svgof(svg).center(add(muldot(indivisual, ratio), muldot(center, sub([1, 1], ratio) )));
+    this.svgs.forEach(s => {
+      this.root.sizeof(s).zoom(ratio);
+      let indivisual = this.root.svgof(s).center();
+      this.root.svgof(s).center(add(muldot(indivisual, ratio), muldot(center, sub([1, 1], ratio) )));
     });
   }
 
@@ -71,6 +91,3 @@ export class CollectionManager {
   }
 }
 
-export function collectionof(svgs: SVGElement[]): CollectionManager {
-  return new CollectionManager(svgs);
-}

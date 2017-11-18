@@ -1,49 +1,49 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Vec2_1 = require("./Vec2");
-const SvgManager_1 = require("./SvgManager");
 const utils_1 = require("./utils");
 const parsers_1 = require("./parsers");
 const Option_1 = require("./Option");
 class MoveManager {
-    constructor(node) {
+    constructor(root, node) {
+        this.root = root;
         this.node = node;
     }
     move(delta) {
         switch (this.node.tagName) {
             case "circle":
             case "ellipse":
-                SvgManager_1.svgof(this.node).attrFn("cx", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
-                SvgManager_1.svgof(this.node).attrFn("cy", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
+                this.root.of(this.node).attrFn("cx", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
+                this.root.of(this.node).attrFn("cy", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
                 break;
             case "image":
             case "text":
             case "rect":
             case "use":
-                SvgManager_1.svgof(this.node).attrFn("x", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
-                SvgManager_1.svgof(this.node).attrFn("y", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
+                this.root.of(this.node).attrFn("x", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
+                this.root.of(this.node).attrFn("y", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
                 break;
             case "line":
-                SvgManager_1.svgof(this.node).attrFn("x1", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
-                SvgManager_1.svgof(this.node).attrFn("y1", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
-                SvgManager_1.svgof(this.node).attrFn("x2", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
-                SvgManager_1.svgof(this.node).attrFn("y2", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
+                this.root.of(this.node).attrFn("x1", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
+                this.root.of(this.node).attrFn("y1", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
+                this.root.of(this.node).attrFn("x2", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
+                this.root.of(this.node).attrFn("y2", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
                 break;
             case "polygon":
             case "polyline":
-                let pointsAttr = SvgManager_1.svgof(this.node).attr("points");
+                let pointsAttr = this.root.of(this.node).attr("points");
                 let points = utils_1.nonUndefined(Option_1.optional(pointsAttr).map(c => parsers_1.parsePoints(c)).content, []);
                 points = points.map(p => Vec2_1.add(p, delta));
-                SvgManager_1.svgof(this.node).attr("points", points.map(p => p.join(" ")).join(", "));
+                this.root.of(this.node).attr("points", points.map(p => p.join(" ")).join(", "));
                 break;
             case "path":
-                let dAttr = SvgManager_1.svgof(this.node).attr("d");
+                let dAttr = this.root.of(this.node).attr("d");
                 let d = utils_1.nonUndefined(Option_1.optional(dAttr).map(c => parsers_1.parseD(c)).content, []);
                 d = d.map(op => ({
                     kind: op.kind,
                     points: op.points.map(p => Vec2_1.add(p, delta))
                 }));
-                SvgManager_1.svgof(this.node).attr("d", parsers_1.genD(d));
+                this.root.of(this.node).attr("d", parsers_1.genD(d));
                 break;
             default:
                 break;
@@ -51,12 +51,8 @@ class MoveManager {
     }
 }
 exports.MoveManager = MoveManager;
-function moveof(node) {
-    return new MoveManager(node);
-}
-exports.moveof = moveof;
 
-},{"./Option":2,"./SvgManager":4,"./Vec2":5,"./parsers":14,"./utils":18}],2:[function(require,module,exports){
+},{"./Option":2,"./Vec2":6,"./parsers":15,"./utils":19}],2:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 class Option {
     constructor(content) {
@@ -81,8 +77,47 @@ exports.optional = optional;
 Object.defineProperty(exports, "__esModule", { value: true });
 const index_1 = require("./index");
 const SvgManager_1 = require("./SvgManager");
+const SizeManager_1 = require("./SizeManager");
+const MoveManager_1 = require("./MoveManager");
+/**
+ * Manage `svg` node.
+ */
+class RootManager {
+    constructor(svgroot) {
+        this.svgroot = svgroot;
+        let clientRect = this.svgroot.getBoundingClientRect();
+        this.leftTop = [clientRect.left, clientRect.top];
+        this.size = [clientRect.width, clientRect.height];
+        this.rightBottom = [clientRect.right, clientRect.bottom];
+    }
+    of(node) {
+        return new SvgManager_1.SvgManager(this, node);
+    }
+    sizeof(node) {
+        return new SizeManager_1.SizeManager(this, node);
+    }
+    moveof(node) {
+        return new MoveManager_1.MoveManager(this, node);
+    }
+    collectionof(nodes) {
+        return new index_1.CollectionManager(this, nodes);
+    }
+}
+exports.RootManager = RootManager;
+/**
+ * Make `RootManager` instance
+ */
+function svg(svgroot) {
+    return new RootManager(svgroot);
+}
+exports.svg = svg;
+
+},{"./MoveManager":1,"./SizeManager":4,"./SvgManager":5,"./index":14}],4:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
+const index_1 = require("./index");
 class SizeManager {
-    constructor(node) {
+    constructor(root, node) {
+        this.root = root;
         this.node = node;
     }
     /**
@@ -90,71 +125,66 @@ class SizeManager {
      * 比率維持拡大しかできないものはvec2[0]倍する
      */
     zoom(vec2) {
-        let center = SvgManager_1.svgof(this.node).center();
+        let center = this.root.of(this.node).center();
         switch (this.node.tagName) {
             case "circle":
-                SvgManager_1.svgof(this.node).attrFn("r", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                this.root.of(this.node).attrFn("r", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
                 break;
             case "ellipse":
-                SvgManager_1.svgof(this.node).attrFn("rx", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
-                SvgManager_1.svgof(this.node).attrFn("ry", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
+                this.root.of(this.node).attrFn("rx", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                this.root.of(this.node).attrFn("ry", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
                 break;
             case "text":
-                SvgManager_1.svgof(this.node).attrFn("font-size", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                this.root.of(this.node).attrFn("font-size", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
                 break;
             case "rect":
             case "use":
-                SvgManager_1.svgof(this.node).attrFn("width", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
-                SvgManager_1.svgof(this.node).attrFn("height", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
+                this.root.of(this.node).attrFn("width", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                this.root.of(this.node).attrFn("height", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
                 break;
             case "line":
-                center = SvgManager_1.svgof(this.node).center();
-                SvgManager_1.svgof(this.node).attrFn("x2", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
-                SvgManager_1.svgof(this.node).attrFn("y2", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
+                center = this.root.of(this.node).center();
+                this.root.of(this.node).attrFn("x2", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                this.root.of(this.node).attrFn("y2", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
                 break;
             case "polygon":
             case "polyline":
-                center = SvgManager_1.svgof(this.node).center();
-                let pointsAttr = SvgManager_1.svgof(this.node).attr("points");
+                center = this.root.of(this.node).center();
+                let pointsAttr = this.root.of(this.node).attr("points");
                 let points = index_1.nonUndefined(index_1.optional(pointsAttr).map(c => index_1.parsePoints(c)).content, []);
                 points = points.map(p => index_1.muldot(p, vec2));
-                SvgManager_1.svgof(this.node).attr("points", points.map(p => p.join(" ")).join(", "));
+                this.root.of(this.node).attr("points", points.map(p => p.join(" ")).join(", "));
                 break;
             case "path":
-                center = SvgManager_1.svgof(this.node).center();
-                let dAttr = SvgManager_1.svgof(this.node).attr("d");
+                center = this.root.of(this.node).center();
+                let dAttr = this.root.of(this.node).attr("d");
                 let d = index_1.nonUndefined(index_1.optional(dAttr).map(c => index_1.parseD(c)).content, []);
                 d = d.map(op => ({
                     kind: op.kind,
                     points: op.points.map(p => index_1.muldot(p, vec2))
                 }));
-                SvgManager_1.svgof(this.node).attr("d", index_1.genD(d));
+                this.root.of(this.node).attr("d", index_1.genD(d));
                 break;
             default:
                 break;
         }
-        SvgManager_1.svgof(this.node).center(center);
+        this.root.of(this.node).center(center);
     }
 }
 exports.SizeManager = SizeManager;
-function sizeof(node) {
-    return new SizeManager(node);
-}
-exports.sizeof = sizeof;
 
-},{"./SvgManager":4,"./index":13}],4:[function(require,module,exports){
+},{"./index":14}],5:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
 const Vec2_1 = require("./Vec2");
-const MoveManager_1 = require("./MoveManager");
 const Option_1 = require("./Option");
 const tinycolor = require("tinycolor2");
 const transform_1 = require("./transform");
 const transforms_1 = require("./transform/transforms");
 const index_1 = require("./index");
-const SizeManager_1 = require("./SizeManager");
 class SvgManager {
-    constructor(node) {
+    constructor(root, node) {
+        this.root = root;
         this.node = node;
     }
     /**
@@ -175,58 +205,61 @@ class SvgManager {
     attrFn(name, fn) {
         return this.attr(name, fn(this.attr(name)));
     }
+    /**
+     * It's the same as `getBoundingClientRect`
+     */
     getBBox() {
         return this.node.getBoundingClientRect();
     }
     /**
-     * Left top of shape. Getter is by BoundingClientRect.
+     * Left top of shape.
      */
     leftTop(vec2) {
         if (vec2 === undefined) {
-            return [this.getBBox().left, this.getBBox().top];
+            return Vec2_1.sub([this.getBBox().left, this.getBBox().top], this.root.leftTop);
         }
         else {
             let delta = Vec2_1.sub(vec2, this.leftTop());
-            MoveManager_1.moveof(this.node).move(delta);
+            this.root.moveof(this.node).move(delta);
             return vec2;
         }
     }
     /**
-     * Right bottm of shape. Getter is by BoundingClientRect.
+     * Right bottm of shape. Size is calculated by BoundingClientRect.
      */
     rightBottom(vec2) {
         if (vec2 === undefined) {
-            return [this.getBBox().right, this.getBBox().bottom];
+            return Vec2_1.sub([this.getBBox().right, this.getBBox().bottom], this.root.leftTop);
         }
         else {
             let delta = Vec2_1.sub(vec2, this.rightBottom());
-            MoveManager_1.moveof(this.node).move(delta);
+            this.root.moveof(this.node).move(delta);
             return vec2;
         }
     }
     /**
-     * Center position of shape. Getter is by BoundingClientRect.
+     * Center position of shape. Size is calculated by BoundingClientRect.
      */
     center(vec2) {
         if (vec2 === undefined) {
             let bbox = this.getBBox();
-            return [(bbox.left + bbox.right) / 2, (bbox.top + bbox.bottom) / 2];
+            return Vec2_1.sub([(bbox.left + bbox.right) / 2, (bbox.top + bbox.bottom) / 2], this.root.leftTop);
         }
         else {
             let delta = Vec2_1.sub(vec2, this.center());
-            MoveManager_1.moveof(this.node).move(delta);
+            this.root.moveof(this.node).move(delta);
             return vec2;
         }
     }
     /**
-     * Get and set width and height. Getter is by BoundingClientRect.
+     * Get and set width and height, calculated by BoundingClientRect.
      */
     size(vec2) {
         if (vec2 === undefined) {
             return [this.getBBox().width, this.getBBox().height];
         }
         else {
-            SizeManager_1.sizeof(this.node).zoom(index_1.divdot(vec2, this.size()));
+            this.root.sizeof(this.node).zoom(index_1.divdot(vec2, this.size()));
             return vec2;
         }
     }
@@ -234,7 +267,7 @@ class SvgManager {
      * Zoom the shape without transform attributes. If only raito fixed zoom is accepted, value of `ratio[0]` is applied.
      */
     zoom(ratio) {
-        SizeManager_1.sizeof(this.node).zoom(ratio);
+        this.root.sizeof(this.node).zoom(ratio);
     }
     /**
      * Get or set color of fill/stroke with opacity. In getter, source function is `getComputedStyle`. Return undefined if there is `none` color.
@@ -325,12 +358,8 @@ class SvgManager {
     }
 }
 exports.SvgManager = SvgManager;
-function svgof(node) {
-    return new SvgManager(node);
-}
-exports.svgof = svgof;
 
-},{"./MoveManager":1,"./Option":2,"./SizeManager":3,"./Vec2":5,"./index":13,"./transform":16,"./transform/transforms":17,"./utils":18,"tinycolor2":19}],5:[function(require,module,exports){
+},{"./Option":2,"./Vec2":6,"./index":14,"./transform":17,"./transform/transforms":18,"./utils":19,"tinycolor2":20}],6:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function add(a, b) {
     return [a[0] + b[0], a[1] + b[1]];
@@ -349,7 +378,7 @@ function divdot(a, b) {
 }
 exports.divdot = divdot;
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Matrix3_1 = require("./Matrix3");
 class Affine extends Matrix3_1.Matrix3 {
@@ -387,7 +416,7 @@ class Affine extends Matrix3_1.Matrix3 {
 }
 exports.Affine = Affine;
 
-},{"./Matrix3":7}],7:[function(require,module,exports){
+},{"./Matrix3":8}],8:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Vec3_1 = require("./Vec3");
 class Matrix3 {
@@ -426,14 +455,14 @@ class Matrix3 {
 }
 exports.Matrix3 = Matrix3;
 
-},{"./Vec3":8}],8:[function(require,module,exports){
+},{"./Vec3":9}],9:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function innerProd(v1, v2) {
     return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 exports.innerProd = innerProd;
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
@@ -441,7 +470,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./Affine"));
 __export(require("./Vec3"));
 
-},{"./Affine":6,"./Vec3":8}],10:[function(require,module,exports){
+},{"./Affine":7,"./Vec3":9}],11:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function merge(a, b) {
     return {
@@ -451,28 +480,26 @@ function merge(a, b) {
 }
 exports.merge = merge;
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Box_1 = require("./Box");
 const index_1 = require("../index");
-const SvgManager_1 = require("../SvgManager");
-const MoveManager_1 = require("../MoveManager");
-const SizeManager_1 = require("../SizeManager");
 /**
  * Utilities for set of SVGElement
  */
 class CollectionManager {
-    constructor(svgs) {
+    constructor(root, svgs) {
+        this.root = root;
         this.svgs = svgs;
     }
     makeBox() {
-        let clientRect = SvgManager_1.svgof(this.svgs[0]).getBBox();
+        let clientRect = this.root.of(this.svgs[0]).getBBox();
         let box = {
             leftTop: [clientRect.left, clientRect.top],
             rightBottom: [clientRect.right, clientRect.bottom]
         };
         for (let i = 1; i < this.svgs.length; i++) {
-            let rect = SvgManager_1.svgof(this.svgs[i]).getBBox();
+            let rect = this.root.of(this.svgs[i]).getBBox();
             let box2 = {
                 leftTop: [rect.left, rect.top],
                 rightBottom: [rect.right, rect.bottom]
@@ -481,26 +508,48 @@ class CollectionManager {
         }
         return box;
     }
+    leftTop(vec2) {
+        if (vec2 === undefined) {
+            let box = this.makeBox();
+            return index_1.sub(box.leftTop, this.root.leftTop);
+        }
+        else {
+            let delta = index_1.sub(vec2, this.leftTop());
+            this.svgs.forEach(s => this.root.moveof(s).move(delta));
+            return this.leftTop();
+        }
+    }
+    rightBottom(vec2) {
+        if (vec2 === undefined) {
+            let box = this.makeBox();
+            return index_1.sub(box.rightBottom, this.root.leftTop);
+        }
+        else {
+            let delta = index_1.sub(vec2, this.rightBottom());
+            this.svgs.forEach(s => this.root.moveof(s).move(delta));
+            return this.rightBottom();
+        }
+    }
     /**
      * Get and set the center of the group. This affects all of members.
      */
     center(vec2) {
         if (vec2 === undefined) {
             let box = this.makeBox();
-            return index_1.divdot(index_1.add(box.leftTop, box.rightBottom), [2, 2]);
+            return index_1.sub(index_1.divdot(index_1.add(box.leftTop, box.rightBottom), [2, 2]), this.root.leftTop);
         }
         else {
             let delta = index_1.sub(vec2, this.center());
-            this.svgs.forEach(svg => MoveManager_1.moveof(svg).move(delta));
+            this.svgs.forEach(s => this.root.moveof(s).move(delta));
             return this.center();
         }
     }
     zoom(ratio) {
         let center = this.center();
-        this.svgs.forEach(svg => {
-            SizeManager_1.sizeof(svg).zoom(ratio);
-            let indivisual = SvgManager_1.svgof(svg).center();
-            SvgManager_1.svgof(svg).center(index_1.add(index_1.muldot(indivisual, ratio), index_1.muldot(center, index_1.sub([1, 1], ratio))));
+        this.svgs.forEach(s => {
+            this.root.sizeof(s).zoom(ratio);
+            let indivisual = this.root.of(s).center();
+            this.root.of(s).center(index_1.add(index_1.muldot(indivisual, ratio), index_1.muldot(center, index_1.sub([1, 1], ratio))));
         });
     }
     size(vec2) {
@@ -522,12 +571,8 @@ class CollectionManager {
     }
 }
 exports.CollectionManager = CollectionManager;
-function collectionof(svgs) {
-    return new CollectionManager(svgs);
-}
-exports.collectionof = collectionof;
 
-},{"../MoveManager":1,"../SizeManager":3,"../SvgManager":4,"../index":13,"./Box":10}],12:[function(require,module,exports){
+},{"../index":14,"./Box":11}],13:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
@@ -535,7 +580,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./Box"));
 __export(require("./CollectionManager"));
 
-},{"./Box":10,"./CollectionManager":11}],13:[function(require,module,exports){
+},{"./Box":11,"./CollectionManager":12}],14:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
@@ -548,7 +593,7 @@ __export(require("./Option"));
 __export(require("./affine"));
 __export(require("./collection"));
 
-},{"./Option":2,"./SvgManager":4,"./Vec2":5,"./affine":9,"./collection":12,"./parsers":14,"./utils":18}],14:[function(require,module,exports){
+},{"./Option":2,"./SvgManager":5,"./Vec2":6,"./affine":10,"./collection":13,"./parsers":15,"./utils":19}],15:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const yaparsec_1 = require("yaparsec");
 function parsePoints(attr) {
@@ -603,26 +648,30 @@ function parseTransform(transformProperty) {
 }
 exports.parseTransform = parseTransform;
 
-},{"yaparsec":22}],15:[function(require,module,exports){
+},{"yaparsec":23}],16:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = require("./index");
+const RootManager_1 = require("./RootManager");
 function log(name, obj) {
     console.log(name + ": " + JSON.stringify(obj));
 }
 let circle = document.getElementById("circle");
 let circle2 = document.getElementById("circle2");
 let circle3 = document.getElementById("circle3");
-log("box", index_1.collectionof([circle, circle2, circle3]).size());
-index_1.collectionof([circle, circle2, circle3]).size([200, 400]);
+let root = RootManager_1.svg(document.getElementById("svg"));
+log("1", root.of(circle).center());
+log("2", root.of(circle2).leftTop());
+log("3", root.of(circle3).rightBottom());
+log("box", root.collectionof([circle, circle2, circle3]).center());
+root.collectionof([circle, circle2, circle3]).size([200, 400]);
 
-},{"./index":13}],16:[function(require,module,exports){
+},{"./RootManager":3}],17:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./transforms"));
 
-},{"./transforms":17}],17:[function(require,module,exports){
+},{"./transforms":18}],18:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("../utils");
 const index_1 = require("../index");
@@ -727,7 +776,7 @@ function unifyToAffine(transformFns) {
 }
 exports.unifyToAffine = unifyToAffine;
 
-},{"../index":13,"../utils":18}],18:[function(require,module,exports){
+},{"../index":14,"../utils":19}],19:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function nonNull(value, defaultValue) {
     if (value === null) {
@@ -756,7 +805,7 @@ function zip(a, b) {
 }
 exports.zip = zip;
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 // TinyColor v1.4.1
 // https://github.com/bgrins/TinyColor
 // Brian Grinstead, MIT License
@@ -1953,7 +2002,7 @@ else {
 
 })(Math);
 
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
  * Input for parsers.
@@ -1974,7 +2023,7 @@ class Input {
 }
 exports.Input = Input;
 
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Input_1 = require("./Input");
 /**
@@ -2266,7 +2315,7 @@ function rep1sep(p, sep) {
 }
 exports.rep1sep = rep1sep;
 
-},{"./Input":20}],22:[function(require,module,exports){
+},{"./Input":21}],23:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
@@ -2275,7 +2324,7 @@ __export(require("./Parser"));
 __export(require("./parsers"));
 __export(require("./Input"));
 
-},{"./Input":20,"./Parser":21,"./parsers":23}],23:[function(require,module,exports){
+},{"./Input":21,"./Parser":22,"./parsers":24}],24:[function(require,module,exports){
 /**
  * Other useful parsers.
  */
@@ -2340,4 +2389,4 @@ exports.integer = regex(/[+-]?\d+/).map(elem => Number(elem)).named("integer");
  */
 exports.email = regex(/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*/).named("email");
 
-},{"./Parser":21}]},{},[15]);
+},{"./Parser":22}]},{},[16]);

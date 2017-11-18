@@ -1,15 +1,14 @@
 import { nonNull, nonUndefined } from "./utils";
 import { Vec2, sub } from "./Vec2";
-import { moveof } from "./MoveManager";
 import { optional } from "./Option";
 import * as tinycolor from "tinycolor2";
 import { TransformFn, unifyToAffine } from "./transform";
 import { compressCognate } from "./transform/transforms";
 import { parseTransform, Affine, divdot } from "./index";
-import { sizeof } from "./SizeManager";
+import { RootManager } from "./RootManager";
 
 export class SvgManager {
-  constructor(public node: SVGElement) {}
+  constructor(public root: RootManager, public node: SVGElement) {}
   /**
    * Getter and setter of attributes. Remove an attribute if value is undefined.
    */
@@ -28,58 +27,62 @@ export class SvgManager {
   attrFn(name: string, fn: (v: string | undefined) => string | undefined): string | undefined {
     return this.attr(name, fn(this.attr(name)));
   }
+
+  /**
+   * It's the same as `getBoundingClientRect`
+   */
   getBBox(): ClientRect {
     return this.node.getBoundingClientRect();
   }
 
   /**
-   * Left top of shape. Getter is by BoundingClientRect.
+   * Left top of shape.
    */
   leftTop(vec2?: Vec2): Vec2 {
     if (vec2 === undefined) {
-      return [this.getBBox().left, this.getBBox().top];
+      return sub([this.getBBox().left, this.getBBox().top], this.root.leftTop);
     } else {
       let delta = sub(vec2, this.leftTop());
-      moveof(this.node).move(delta);
+      this.root.moveof(this.node).move(delta);
       return vec2;
     }
   }
 
   /**
-   * Right bottm of shape. Getter is by BoundingClientRect.
+   * Right bottm of shape. Size is calculated by BoundingClientRect.
    */
   rightBottom(vec2?: Vec2): Vec2 {
     if (vec2 === undefined) {
-      return [this.getBBox().right, this.getBBox().bottom];
+      return sub([this.getBBox().right, this.getBBox().bottom], this.root.leftTop);
     } else {
       let delta = sub(vec2, this.rightBottom());
-      moveof(this.node).move(delta);
+      this.root.moveof(this.node).move(delta);
       return vec2;
     }
   }
 
   /**
-   * Center position of shape. Getter is by BoundingClientRect.
+   * Center position of shape. Size is calculated by BoundingClientRect.
    */
   center(vec2?: Vec2): Vec2 {
     if (vec2 === undefined) {
       let bbox = this.getBBox();
-      return [(bbox.left + bbox.right) / 2, (bbox.top + bbox.bottom) / 2];
+      return sub([(bbox.left + bbox.right) / 2, (bbox.top + bbox.bottom) / 2], this.root.leftTop);
     } else {
       let delta = sub(vec2, this.center());
-      moveof(this.node).move(delta);
+      this.root.moveof(this.node).move(delta);
       return vec2;
     }
   }
 
   /**
-   * Get and set width and height. Getter is by BoundingClientRect.
+   * Get and set width and height, calculated by BoundingClientRect.
    */
   size(vec2?: Vec2): Vec2 {
     if (vec2 === undefined) {
       return [this.getBBox().width, this.getBBox().height];
     } else {
-      sizeof(this.node).zoom(divdot(vec2, this.size()));
+      this.root.sizeof(this.node).zoom(divdot(vec2, this.size()));
       return vec2;
     }
   }
@@ -88,7 +91,7 @@ export class SvgManager {
    * Zoom the shape without transform attributes. If only raito fixed zoom is accepted, value of `ratio[0]` is applied.
    */
   zoom(ratio: Vec2): void {
-    sizeof(this.node).zoom(ratio);
+    this.root.sizeof(this.node).zoom(ratio);
   }
 
   /**
@@ -179,8 +182,4 @@ export class SvgManager {
       return affine;
     }
   }
-}
-
-export function svgof(node: SVGElement): SvgManager {
-  return new SvgManager(node);
 }
