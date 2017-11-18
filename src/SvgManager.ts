@@ -3,6 +3,9 @@ import { Vec2, sub } from "./Vec2";
 import { moveof } from "./MoveManager";
 import { optional } from "./Option";
 import * as tinycolor from "tinycolor2";
+import { TransformFn } from "./transform";
+import { compressCognate } from "./transform/transforms";
+import { parseTransform } from "./index";
 
 export class SvgManager {
   constructor(public node: SVGElement) {}
@@ -98,6 +101,49 @@ export class SvgManager {
         return colorInstance;
       }
     }
+  }
+
+  /**
+   * Get or set transform attribute
+   */
+  transform(transformfns?: TransformFn[]): TransformFn[] | undefined {
+    if (transformfns === undefined) {
+      return optional(this.attr("transform")).map(c => parseTransform(c)).content;
+    } else {
+      transformfns = compressCognate(transformfns);
+      this.attr("transform", transformfns.map(fn => `${fn.kind} (${fn.args.join(" ")})`).join(" "));
+      return transformfns;
+    }
+  }
+
+  /**
+   * Add transform function in right
+   */
+  addTransformFnRight(transformFn: TransformFn): void {
+    let rawAttr = this.attr("transform");
+    let attr = rawAttr === undefined ? [] : parseTransform(rawAttr);
+    attr.push(transformFn);
+    attr = compressCognate(attr);
+    this.attr(
+      "transform",
+      `${attr.map(fn => fn.kind + "(" + fn.args.join(" ") + ")")}})`
+    );
+  }
+
+  /**
+   * Add transform function in left
+   */
+  addTransformFnLeft(transformFn: TransformFn): void {
+    let attr = (() => {
+      let rawAttr = this.attr("transform");
+      return rawAttr === undefined ? [] : parseTransform(rawAttr);
+    })();
+    attr.unshift(transformFn);
+    attr = compressCognate(attr);
+    this.attr(
+      "transform",
+      `${attr.map(fn => fn.kind + "(" + fn.args.join(" ") + ")")}})`
+    );
   }
 }
 
