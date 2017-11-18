@@ -2,6 +2,7 @@ import { Vec2, CollectionManager } from "./index";
 import { SvgManager } from "./SvgManager";
 import { SizeManager } from "./SizeManager";
 import { MoveManager } from "./MoveManager";
+import { VertexManager } from "./VertexManager";
 
 /**
  * Manage `svg` node.
@@ -39,6 +40,10 @@ export class RootManager {
 
   collectionof(nodes: SVGElement[]): CollectionManager {
     return new CollectionManager(this, nodes);
+  }
+
+  vertexof(node: SVGElement): VertexManager {
+    return new VertexManager(this, node);
   }
 }
 
