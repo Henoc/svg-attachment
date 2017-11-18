@@ -1,9 +1,9 @@
 {
   "name": "svg-attachment",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "utilities of svg",
   "scripts": {
-    "prepublish": "npm run compile",
+    "prepublishOnly": "npm run compile",
     "compile": "tsc -p ./ && npm run bundle",
     "bundle": "browserify build/SvgManager.js -o dest/svg-attachment.js",
     "clean": "rimraf ./build/*",
@@ -22,11 +22,11 @@
     "url": "https://github.com/Henoc/svg-attachment"
   },
   "dependencies": {
-    "@types/tinycolor2": "^1.4.0",
     "tinycolor2": "^1.4.1",
     "yaparsec": "^1.1.0"
   },
   "devDependencies": {
+    "@types/tinycolor2": "^1.4.0",
     "@types/expect.js": "^0.3.29",
     "@types/mocha": "^2.2.44",
     "@types/node": "^8.0.53",

@@ -1,4 +1,5 @@
 export * from "./SvgManager";
+export * from "./RootManager";
 export * from "./utils";
 export * from "./Vec2";
 export * from "./parsers";
