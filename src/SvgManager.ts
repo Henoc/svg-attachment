@@ -6,6 +6,7 @@ import { TransformFn, unifyToAffine } from "./transform";
 import { compressCognate } from "./transform/transforms";
 import { parseTransform, Affine, divdot } from "./index";
 import { RootManager } from "./RootManager";
+import { parseStyle, Style } from "./parsers";
 
 export class SvgManager {
   constructor(public root: RootManager, public node: HTMLElement) {}
@@ -124,6 +125,20 @@ export class SvgManager {
         this.node.style.strokeOpacity = colorInstance.getAlpha() + "";
         return colorInstance;
       }
+    }
+  }
+
+  /**
+   * Get computed style (undefined if value is undefined or "none") or set `value` to the style attribute
+   */
+  style(name: string, value?: string): string | undefined {
+    if (value === undefined) {
+      let st = window.getComputedStyle(this.node);
+      if (st[name] === undefined || st[name] === "none") return undefined;
+      else return st[name];
+    } else {
+      this.node.style[name] = value;
+      return value;
     }
   }
 

@@ -1,5 +1,59 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
+const Vec2_1 = require("./Vec2");
+const utils_1 = require("./utils");
+const parsers_1 = require("./parsers");
+const Option_1 = require("./Option");
+class MoveManager {
+    constructor(root, node) {
+        this.root = root;
+        this.node = node;
+    }
+    move(delta) {
+        switch (this.node.tagName) {
+            case "circle":
+            case "ellipse":
+                this.root.svgof(this.node).attrFn("cx", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
+                this.root.svgof(this.node).attrFn("cy", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
+                break;
+            case "image":
+            case "text":
+            case "rect":
+            case "use":
+                this.root.svgof(this.node).attrFn("x", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
+                this.root.svgof(this.node).attrFn("y", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
+                break;
+            case "line":
+                this.root.svgof(this.node).attrFn("x1", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
+                this.root.svgof(this.node).attrFn("y1", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
+                this.root.svgof(this.node).attrFn("x2", origin => String(+utils_1.nonUndefined(origin, "0") + delta[0]));
+                this.root.svgof(this.node).attrFn("y2", origin => String(+utils_1.nonUndefined(origin, "0") + delta[1]));
+                break;
+            case "polygon":
+            case "polyline":
+                let pointsAttr = this.root.svgof(this.node).attr("points");
+                let points = utils_1.nonUndefined(Option_1.optional(pointsAttr).map(c => parsers_1.parsePoints(c)).content, []);
+                points = points.map(p => Vec2_1.add(p, delta));
+                this.root.svgof(this.node).attr("points", points.map(p => p.join(" ")).join(", "));
+                break;
+            case "path":
+                let dAttr = this.root.svgof(this.node).attr("d");
+                let d = utils_1.nonUndefined(Option_1.optional(dAttr).map(c => parsers_1.parseD(c)).content, []);
+                d = d.map(op => ({
+                    kind: op.kind,
+                    points: op.points.map(p => Vec2_1.add(p, delta))
+                }));
+                this.root.svgof(this.node).attr("d", parsers_1.genD(d));
+                break;
+            default:
+                break;
+        }
+    }
+}
+exports.MoveManager = MoveManager;
+
+},{"./Option":2,"./Vec2":6,"./parsers":16,"./utils":19}],2:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
 class Option {
     constructor(content) {
         this.content = content;
@@ -19,7 +73,117 @@ function optional(content) {
 }
 exports.optional = optional;
 
-},{}],2:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
+const index_1 = require("./index");
+const SvgManager_1 = require("./SvgManager");
+const SizeManager_1 = require("./SizeManager");
+const MoveManager_1 = require("./MoveManager");
+const VertexManager_1 = require("./VertexManager");
+/**
+ * Manage `svg` node.
+ */
+class RootManager {
+    constructor(svgroot) {
+        this.svgroot = svgroot;
+        let clientRect = this.svgroot.getBoundingClientRect();
+        this.leftTop = [clientRect.left, clientRect.top];
+        this.size = [clientRect.width, clientRect.height];
+        this.rightBottom = [clientRect.right, clientRect.bottom];
+    }
+    svgof(node) {
+        return new SvgManager_1.SvgManager(this, node);
+    }
+    /**
+     * Internal use only
+     */
+    sizeof(node) {
+        return new SizeManager_1.SizeManager(this, node);
+    }
+    /**
+     * Internal use only
+     */
+    moveof(node) {
+        return new MoveManager_1.MoveManager(this, node);
+    }
+    collectionof(nodes) {
+        return new index_1.CollectionManager(this, nodes);
+    }
+    vertexof(node) {
+        return new VertexManager_1.VertexManager(this, node);
+    }
+}
+exports.RootManager = RootManager;
+/**
+ * Make `RootManager` instance
+ */
+function svg(svgroot) {
+    return new RootManager(svgroot);
+}
+exports.svg = svg;
+
+},{"./MoveManager":1,"./SizeManager":4,"./SvgManager":5,"./VertexManager":7,"./index":15}],4:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
+const index_1 = require("./index");
+class SizeManager {
+    constructor(root, node) {
+        this.root = root;
+        this.node = node;
+    }
+    /**
+     * 図形中心を中心として縮尺を変更する
+     * 比率維持拡大しかできないものはvec2[0]倍する
+     */
+    zoom(vec2) {
+        let center = this.root.svgof(this.node).center();
+        switch (this.node.tagName) {
+            case "circle":
+                this.root.svgof(this.node).attrFn("r", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                break;
+            case "ellipse":
+                this.root.svgof(this.node).attrFn("rx", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                this.root.svgof(this.node).attrFn("ry", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
+                break;
+            case "text":
+                this.root.svgof(this.node).attrFn("font-size", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                break;
+            case "rect":
+            case "use":
+                this.root.svgof(this.node).attrFn("width", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                this.root.svgof(this.node).attrFn("height", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
+                break;
+            case "line":
+                center = this.root.svgof(this.node).center();
+                this.root.svgof(this.node).attrFn("x2", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                this.root.svgof(this.node).attrFn("y2", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
+                break;
+            case "polygon":
+            case "polyline":
+                center = this.root.svgof(this.node).center();
+                let pointsAttr = this.root.svgof(this.node).attr("points");
+                let points = index_1.nonUndefined(index_1.optional(pointsAttr).map(c => index_1.parsePoints(c)).content, []);
+                points = points.map(p => index_1.muldot(p, vec2));
+                this.root.svgof(this.node).attr("points", points.map(p => p.join(" ")).join(", "));
+                break;
+            case "path":
+                center = this.root.svgof(this.node).center();
+                let dAttr = this.root.svgof(this.node).attr("d");
+                let d = index_1.nonUndefined(index_1.optional(dAttr).map(c => index_1.parseD(c)).content, []);
+                d = d.map(op => ({
+                    kind: op.kind,
+                    points: op.points.map(p => index_1.muldot(p, vec2))
+                }));
+                this.root.svgof(this.node).attr("d", index_1.genD(d));
+                break;
+            default:
+                break;
+        }
+        this.root.svgof(this.node).center(center);
+    }
+}
+exports.SizeManager = SizeManager;
+
+},{"./index":15}],5:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
 const Vec2_1 = require("./Vec2");
@@ -155,6 +319,22 @@ class SvgManager {
         }
     }
     /**
+     * Get computed style (undefined if value is undefined or "none") or set `value` to the style attribute
+     */
+    style(name, value) {
+        if (value === undefined) {
+            let st = window.getComputedStyle(this.node);
+            if (st[name] === undefined || st[name] === "none")
+                return undefined;
+            else
+                return st[name];
+        }
+        else {
+            this.node.style[name] = value;
+            return value;
+        }
+    }
+    /**
      * Get or set transform attribute
      */
     transform(transformfns) {
@@ -205,7 +385,7 @@ class SvgManager {
 }
 exports.SvgManager = SvgManager;
 
-},{"./Option":1,"./Vec2":3,"./index":11,"./transform":13,"./transform/transforms":14,"./utils":15,"tinycolor2":16}],3:[function(require,module,exports){
+},{"./Option":2,"./Vec2":6,"./index":15,"./transform":17,"./transform/transforms":18,"./utils":19,"tinycolor2":20}],6:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function add(a, b) {
     return [a[0] + b[0], a[1] + b[1]];
@@ -224,7 +404,72 @@ function divdot(a, b) {
 }
 exports.divdot = divdot;
 
-},{}],4:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
+const index_1 = require("./index");
+const parsers_1 = require("./parsers");
+class VertexManager {
+    constructor(root, node) {
+        this.root = root;
+        this.node = node;
+    }
+    vertexes(vec2s) {
+        if (vec2s === undefined) {
+            switch (this.node.tagName) {
+                case "polygon":
+                case "polyline":
+                    let pointsAttr = this.root.svgof(this.node).attr("points");
+                    return pointsAttr ? parsers_1.parsePoints(pointsAttr) : [];
+                case "line":
+                    let x1 = +index_1.nonUndefined(this.root.svgof(this.node).attr("x1"), "0");
+                    let y1 = +index_1.nonUndefined(this.root.svgof(this.node).attr("y1"), "0");
+                    let x2 = +index_1.nonUndefined(this.root.svgof(this.node).attr("x2"), "0");
+                    let y2 = +index_1.nonUndefined(this.root.svgof(this.node).attr("y2"), "0");
+                    return [[x1, y1], [x2, y2]];
+                case "path":
+                    let ret = [];
+                    let dAttr = this.root.svgof(this.node).attr("d");
+                    if (dAttr)
+                        parsers_1.parseD(dAttr).forEach(op => {
+                            ret.push(...op.points);
+                        });
+                    return ret;
+                default:
+                    return undefined;
+            }
+        }
+        else {
+            switch (this.node.tagName) {
+                case "polygon":
+                case "polyline":
+                    this.root.svgof(this.node).attr("points", vec2s.map(p => [p[0] + " " + p[1]]).join(", "));
+                    return vec2s;
+                case "line":
+                    this.root.svgof(this.node).attr("x1", vec2s[0][0] + "");
+                    this.root.svgof(this.node).attr("y1", vec2s[0][1] + "");
+                    this.root.svgof(this.node).attr("x2", vec2s[1][0] + "");
+                    this.root.svgof(this.node).attr("y2", vec2s[1][1] + "");
+                    return vec2s;
+                case "path":
+                    let dAttr = this.root.svgof(this.node).attr("d");
+                    if (dAttr === undefined)
+                        return;
+                    let pathOps = parsers_1.parseD(dAttr);
+                    let c = 0;
+                    for (let op of pathOps) {
+                        op.points = vec2s.slice(c, c + op.points.length);
+                        c += op.points.length;
+                    }
+                    this.root.svgof(this.node).attr("d", pathOps.map(op => op.kind + " " + op.points.map(p => [p[0] + " " + p[1]]).join(", ")).join(" "));
+                    return vec2s;
+            }
+            return vec2s;
+        }
+    }
+}
+exports.VertexManager = VertexManager;
+
+},{"./index":15,"./parsers":16}],8:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Matrix3_1 = require("./Matrix3");
 class Affine extends Matrix3_1.Matrix3 {
@@ -262,7 +507,7 @@ class Affine extends Matrix3_1.Matrix3 {
 }
 exports.Affine = Affine;
 
-},{"./Matrix3":5}],5:[function(require,module,exports){
+},{"./Matrix3":9}],9:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Vec3_1 = require("./Vec3");
 class Matrix3 {
@@ -301,14 +546,14 @@ class Matrix3 {
 }
 exports.Matrix3 = Matrix3;
 
-},{"./Vec3":6}],6:[function(require,module,exports){
+},{"./Vec3":10}],10:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function innerProd(v1, v2) {
     return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 exports.innerProd = innerProd;
 
-},{}],7:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
@@ -316,7 +561,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./Affine"));
 __export(require("./Vec3"));
 
-},{"./Affine":4,"./Vec3":6}],8:[function(require,module,exports){
+},{"./Affine":8,"./Vec3":10}],12:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function merge(a, b) {
     return {
@@ -326,7 +571,7 @@ function merge(a, b) {
 }
 exports.merge = merge;
 
-},{}],9:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Box_1 = require("./Box");
 const index_1 = require("../index");
@@ -418,7 +663,7 @@ class CollectionManager {
 }
 exports.CollectionManager = CollectionManager;
 
-},{"../index":11,"./Box":8}],10:[function(require,module,exports){
+},{"../index":15,"./Box":12}],14:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
@@ -426,12 +671,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./Box"));
 __export(require("./CollectionManager"));
 
-},{"./Box":8,"./CollectionManager":9}],11:[function(require,module,exports){
+},{"./Box":12,"./CollectionManager":13}],15:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./SvgManager"));
+__export(require("./RootManager"));
 __export(require("./utils"));
 __export(require("./Vec2"));
 __export(require("./parsers"));
@@ -439,7 +685,7 @@ __export(require("./Option"));
 __export(require("./affine"));
 __export(require("./collection"));
 
-},{"./Option":1,"./SvgManager":2,"./Vec2":3,"./affine":7,"./collection":10,"./parsers":12,"./utils":15}],12:[function(require,module,exports){
+},{"./Option":2,"./RootManager":3,"./SvgManager":5,"./Vec2":6,"./affine":11,"./collection":14,"./parsers":16,"./utils":19}],16:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const yaparsec_1 = require("yaparsec");
 function parsePoints(attr) {
@@ -493,15 +739,24 @@ function parseTransform(transformProperty) {
     return tfns;
 }
 exports.parseTransform = parseTransform;
+function parseStyle(style) {
+    let ret = {};
+    let pair = yaparsec_1.r(/[^:\s]+/).then(yaparsec_1.r(/[^;\s]+/));
+    pair.rep().of(style).getResult().forEach(p => {
+        ret[p[0]] = p[1];
+    });
+    return ret;
+}
+exports.parseStyle = parseStyle;
 
-},{"yaparsec":19}],13:[function(require,module,exports){
+},{"yaparsec":23}],17:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./transforms"));
 
-},{"./transforms":14}],14:[function(require,module,exports){
+},{"./transforms":18}],18:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("../utils");
 const index_1 = require("../index");
@@ -606,7 +861,7 @@ function unifyToAffine(transformFns) {
 }
 exports.unifyToAffine = unifyToAffine;
 
-},{"../index":11,"../utils":15}],15:[function(require,module,exports){
+},{"../index":15,"../utils":19}],19:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function nonNull(value, defaultValue) {
     if (value === null) {
@@ -635,7 +890,7 @@ function zip(a, b) {
 }
 exports.zip = zip;
 
-},{}],16:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 // TinyColor v1.4.1
 // https://github.com/bgrins/TinyColor
 // Brian Grinstead, MIT License
@@ -1832,7 +2087,7 @@ else {
 
 })(Math);
 
-},{}],17:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
  * Input for parsers.
@@ -1853,7 +2108,7 @@ class Input {
 }
 exports.Input = Input;
 
-},{}],18:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Input_1 = require("./Input");
 /**
@@ -2145,7 +2400,7 @@ function rep1sep(p, sep) {
 }
 exports.rep1sep = rep1sep;
 
-},{"./Input":17}],19:[function(require,module,exports){
+},{"./Input":21}],23:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
@@ -2154,7 +2409,7 @@ __export(require("./Parser"));
 __export(require("./parsers"));
 __export(require("./Input"));
 
-},{"./Input":17,"./Parser":18,"./parsers":20}],20:[function(require,module,exports){
+},{"./Input":21,"./Parser":22,"./parsers":24}],24:[function(require,module,exports){
 /**
  * Other useful parsers.
  */
@@ -2219,4 +2474,4 @@ exports.integer = regex(/[+-]?\d+/).map(elem => Number(elem)).named("integer");
  */
 exports.email = regex(/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*/).named("email");
 
-},{"./Parser":18}]},{},[2]);
+},{"./Parser":22}]},{},[5]);

@@ -56,3 +56,14 @@ export function parseTransform(transformProperty: string): TransformFn[] {
   tfns.push(<any>tfn);
   return tfns;
 }
+
+export type Style = {[name: string]: string};
+
+export function parseStyle(style: string): Style {
+  let ret: Style = {};
+  let pair = r(/[^:\s]+/).then(r(/[^;\s]+/));
+  pair.rep().of(style).getResult().forEach(p => {
+    ret[p[0]] = p[1];
+  });
+  return ret;
+}

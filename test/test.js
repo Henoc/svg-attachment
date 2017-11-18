@@ -319,6 +319,22 @@ class SvgManager {
         }
     }
     /**
+     * Get computed style (undefined if value is undefined or "none") or set `value` to the style attribute
+     */
+    style(name, value) {
+        if (value === undefined) {
+            let st = window.getComputedStyle(this.node);
+            if (st[name] === undefined || st[name] === "none")
+                return undefined;
+            else
+                return st[name];
+        }
+        else {
+            this.node.style[name] = value;
+            return value;
+        }
+    }
+    /**
      * Get or set transform attribute
      */
     transform(transformfns) {
@@ -661,6 +677,7 @@ function __export(m) {
 }
 Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./SvgManager"));
+__export(require("./RootManager"));
 __export(require("./utils"));
 __export(require("./Vec2"));
 __export(require("./parsers"));
@@ -668,7 +685,7 @@ __export(require("./Option"));
 __export(require("./affine"));
 __export(require("./collection"));
 
-},{"./Option":2,"./SvgManager":5,"./Vec2":6,"./affine":11,"./collection":14,"./parsers":16,"./utils":20}],16:[function(require,module,exports){
+},{"./Option":2,"./RootManager":3,"./SvgManager":5,"./Vec2":6,"./affine":11,"./collection":14,"./parsers":16,"./utils":20}],16:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const yaparsec_1 = require("yaparsec");
 function parsePoints(attr) {
@@ -722,22 +739,42 @@ function parseTransform(transformProperty) {
     return tfns;
 }
 exports.parseTransform = parseTransform;
+function parseStyle(style) {
+    let ret = {};
+    let pair = yaparsec_1.r(/[^:\s]+/).then(yaparsec_1.r(/[^;\s]+/));
+    pair.rep().of(style).getResult().forEach(p => {
+        ret[p[0]] = p[1];
+    });
+    return ret;
+}
+exports.parseStyle = parseStyle;
 
 },{"yaparsec":29}],17:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
+const tinycolor = require("tinycolor2");
 const RootManager_1 = require("./RootManager");
 const SVG = require("svgjs");
 let expect = require("expect.js");
 let doc = SVG("mocha").size(400, 400);
-let circle = doc.circle(50).move(0, 0);
+let circle;
 let root = RootManager_1.svg(doc.node);
-it("svgof", () => {
-    expect(root.svgof(circle.node).leftTop()).to.eql([0, 0]);
-    expect(root.svgof(circle.node).rightBottom()).to.eql([50, 50]);
-    expect(root.svgof(circle.node).center()).to.eql([25, 25]);
+describe("svgof", () => {
+    beforeEach(() => {
+        circle = doc.circle(50).move(0, 0).fill("#666600");
+    });
+    it("coordinate", () => {
+        expect(root.svgof(circle.node).leftTop()).to.eql([0, 0]);
+        expect(root.svgof(circle.node).rightBottom()).to.eql([50, 50]);
+        expect(root.svgof(circle.node).center()).to.eql([25, 25]);
+    });
+    it("style", () => {
+        expect(tinycolor(root.svgof(circle.node).style("fill")).toHexString()).to.be("#666600");
+        root.svgof(circle.node).style("fill", "#007777");
+        expect(tinycolor(root.svgof(circle.node).style("fill")).toHexString()).to.be("#007777");
+    });
 });
 
-},{"./RootManager":3,"expect.js":23,"svgjs":25}],18:[function(require,module,exports){
+},{"./RootManager":3,"expect.js":23,"svgjs":25,"tinycolor2":26}],18:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
