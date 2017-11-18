@@ -1,6 +1,6 @@
 # SVG Attachment
 
-![attachment image here](https://github.com/Henoc/svg-attachment/blob/master/images/attachment.svg)
+![attachment image here](https://github.com/Henoc/svg-attachment/blob/master/images/attachment.png)
 
 Tiny utility functions of SVG DOM.
 
