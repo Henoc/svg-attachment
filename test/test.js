@@ -56,7 +56,7 @@ function moveof(node) {
 }
 exports.moveof = moveof;
 
-},{"./Option":2,"./SvgManager":3,"./Vec2":4,"./parsers":5,"./utils":7}],2:[function(require,module,exports){
+},{"./Option":2,"./SvgManager":4,"./Vec2":5,"./parsers":11,"./utils":15}],2:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 class Option {
     constructor(content) {
@@ -79,14 +79,87 @@ exports.optional = optional;
 
 },{}],3:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
+const index_1 = require("./index");
+const SvgManager_1 = require("./SvgManager");
+class SizeManager {
+    constructor(node) {
+        this.node = node;
+    }
+    /**
+     * 図形中心を中心として縮尺を変更する
+     * 比率維持拡大しかできないものはvec2[0]倍する
+     */
+    scale(vec2) {
+        let center = SvgManager_1.svgof(this.node).center();
+        switch (this.node.tagName) {
+            case "circle":
+                SvgManager_1.svgof(this.node).attrFn("r", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                break;
+            case "ellipse":
+                SvgManager_1.svgof(this.node).attrFn("rx", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                SvgManager_1.svgof(this.node).attrFn("ry", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
+                break;
+            case "text":
+                SvgManager_1.svgof(this.node).attrFn("font-size", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                break;
+            case "rect":
+            case "use":
+                SvgManager_1.svgof(this.node).attrFn("width", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                SvgManager_1.svgof(this.node).attrFn("height", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
+                break;
+            case "line":
+                center = SvgManager_1.svgof(this.node).center();
+                SvgManager_1.svgof(this.node).attrFn("x2", origin => index_1.optional(origin).map(c => String(+c * vec2[0])).content);
+                SvgManager_1.svgof(this.node).attrFn("y2", origin => index_1.optional(origin).map(c => String(+c * vec2[1])).content);
+                break;
+            case "polygon":
+            case "polyline":
+                center = SvgManager_1.svgof(this.node).center();
+                let pointsAttr = SvgManager_1.svgof(this.node).attr("points");
+                let points = index_1.nonUndefined(index_1.optional(pointsAttr).map(c => index_1.parsePoints(c)).content, []);
+                points = points.map(p => index_1.muldot(p, vec2));
+                SvgManager_1.svgof(this.node).attr("points", points.map(p => p.join(" ")).join(", "));
+                break;
+            case "path":
+                center = SvgManager_1.svgof(this.node).center();
+                let dAttr = SvgManager_1.svgof(this.node).attr("d");
+                let d = index_1.nonUndefined(index_1.optional(dAttr).map(c => index_1.parseD(c)).content, []);
+                d = d.map(op => ({
+                    kind: op.kind,
+                    points: op.points.map(p => index_1.muldot(p, vec2))
+                }));
+                SvgManager_1.svgof(this.node).attr("d", index_1.genD(d));
+                break;
+            default:
+                break;
+        }
+        SvgManager_1.svgof(this.node).center(center);
+    }
+}
+exports.SizeManager = SizeManager;
+function sizeof(node) {
+    return new SizeManager(node);
+}
+exports.sizeof = sizeof;
+
+},{"./SvgManager":4,"./index":10}],4:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("./utils");
 const Vec2_1 = require("./Vec2");
 const MoveManager_1 = require("./MoveManager");
+const Option_1 = require("./Option");
 const tinycolor = require("tinycolor2");
+const transform_1 = require("./transform");
+const transforms_1 = require("./transform/transforms");
+const index_1 = require("./index");
+const SizeManager_1 = require("./SizeManager");
 class SvgManager {
     constructor(node) {
         this.node = node;
     }
+    /**
+     * Getter and setter of attributes. Remove an attribute if value is undefined.
+     */
     attr(name, value) {
         if (value === undefined) {
             return utils_1.nonNull(this.node.getAttribute(name), undefined);
@@ -96,12 +169,18 @@ class SvgManager {
             return value;
         }
     }
+    /**
+     * Attributes setter which can use current value.
+     */
     attrFn(name, fn) {
         return this.attr(name, fn(this.attr(name)));
     }
     getBBox() {
         return this.node.getBoundingClientRect();
     }
+    /**
+     * Left top of shape. Getter is by BoundingBox.
+     */
     leftTop(vec2) {
         if (vec2 === undefined) {
             return [this.getBBox().left, this.getBBox().top];
@@ -112,6 +191,9 @@ class SvgManager {
             return vec2;
         }
     }
+    /**
+     * Right bottm of shape. Getter is by BoundingBox.
+     */
     rightBottom(vec2) {
         if (vec2 === undefined) {
             return [this.getBBox().right, this.getBBox().bottom];
@@ -122,6 +204,9 @@ class SvgManager {
             return vec2;
         }
     }
+    /**
+     * Center position of shape. Getter is by BoundingBox.
+     */
     center(vec2) {
         if (vec2 === undefined) {
             let bbox = this.getBBox();
@@ -130,6 +215,18 @@ class SvgManager {
         else {
             let delta = Vec2_1.sub(vec2, this.center());
             MoveManager_1.moveof(this.node).move(delta);
+            return vec2;
+        }
+    }
+    /**
+     * Get and set width and height. Getter is by BoundingBox.
+     */
+    size(vec2) {
+        if (vec2 === undefined) {
+            return [this.getBBox().width, this.getBBox().height];
+        }
+        else {
+            SizeManager_1.sizeof(this.node).scale(index_1.divdot(vec2, this.size()));
             return vec2;
         }
     }
@@ -172,6 +269,54 @@ class SvgManager {
             }
         }
     }
+    /**
+     * Get or set transform attribute
+     */
+    transform(transformfns) {
+        if (transformfns === undefined) {
+            return Option_1.optional(this.attr("transform")).map(c => index_1.parseTransform(c)).content;
+        }
+        else {
+            transformfns = transforms_1.compressCognate(transformfns);
+            this.attr("transform", transformfns.map(fn => `${fn.kind} (${fn.args.join(" ")})`).join(" "));
+            return transformfns;
+        }
+    }
+    /**
+     * Add transform function in right
+     */
+    addTransformFnRight(transformFn) {
+        let rawAttr = this.attr("transform");
+        let attr = rawAttr === undefined ? [] : index_1.parseTransform(rawAttr);
+        attr.push(transformFn);
+        attr = transforms_1.compressCognate(attr);
+        this.attr("transform", `${attr.map(fn => fn.kind + "(" + fn.args.join(" ") + ")")}})`);
+    }
+    /**
+     * Add transform function in left
+     */
+    addTransformFnLeft(transformFn) {
+        let attr = (() => {
+            let rawAttr = this.attr("transform");
+            return rawAttr === undefined ? [] : index_1.parseTransform(rawAttr);
+        })();
+        attr.unshift(transformFn);
+        attr = transforms_1.compressCognate(attr);
+        this.attr("transform", `${attr.map(fn => fn.kind + "(" + fn.args.join(" ") + ")")}})`);
+    }
+    /**
+     * Get or set as one affine transform matrix
+     */
+    matrix(affine) {
+        if (affine === undefined) {
+            let tfns = this.transform();
+            return tfns ? transform_1.unifyToAffine(tfns) : index_1.Affine.unit();
+        }
+        else {
+            this.attr("transform", `matrix(${affine.col(0)[0]} ${affine.col(0)[1]} ${affine.col(1)[0]} ${affine.col(1)[1]} ${affine.col(2)[0]} ${affine.col(2)[1]})`);
+            return affine;
+        }
+    }
 }
 exports.SvgManager = SvgManager;
 function svgof(node) {
@@ -179,7 +324,7 @@ function svgof(node) {
 }
 exports.svgof = svgof;
 
-},{"./MoveManager":1,"./Vec2":4,"./utils":7,"tinycolor2":8}],4:[function(require,module,exports){
+},{"./MoveManager":1,"./Option":2,"./SizeManager":3,"./Vec2":5,"./index":10,"./transform":13,"./transform/transforms":14,"./utils":15,"tinycolor2":16}],5:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function add(a, b) {
     return [a[0] + b[0], a[1] + b[1]];
@@ -189,8 +334,120 @@ function sub(a, b) {
     return [a[0] - b[0], a[1] - b[1]];
 }
 exports.sub = sub;
+function muldot(a, b) {
+    return [a[0] * b[0], a[1] * b[1]];
+}
+exports.muldot = muldot;
+function divdot(a, b) {
+    return [a[0] / b[0], a[1] / b[1]];
+}
+exports.divdot = divdot;
 
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
+const Matrix3_1 = require("./Matrix3");
+class Affine extends Matrix3_1.Matrix3 {
+    constructor(r1, r2) {
+        super(r1, r2, [0, 0, 1]);
+    }
+    /**
+     * Transform `p` using this affine transform.
+     */
+    transform(p) {
+        return this.mulVec([p[0], p[1], 1]);
+    }
+    mulAffine(that) {
+        let ret = this.mul(that);
+        return new Affine(ret.m[0], ret.m[1]);
+    }
+    static translate(p) {
+        return new Affine([1, 0, p[0]], [0, 1, p[1]]);
+    }
+    static scale(p) {
+        return new Affine([p[0], 0, 0], [0, p[1], 0]);
+    }
+    static rotate(a) {
+        return new Affine([Math.cos(a), -Math.sin(a), 0], [Math.sin(a), Math.cos(a), 0]);
+    }
+    static skewX(a) {
+        return new Affine([1, Math.tan(a), 0], [0, 1, 0]);
+    }
+    static skewY(a) {
+        return new Affine([1, 0, 0], [Math.tan(a), 1, 0]);
+    }
+    static unit() {
+        return new Affine([1, 0, 0], [0, 1, 0]);
+    }
+}
+exports.Affine = Affine;
+
+},{"./Matrix3":7}],7:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
+const Vec3_1 = require("./Vec3");
+class Matrix3 {
+    constructor(r1, r2, r3) {
+        this.m = [r1, r2, r3];
+    }
+    static fromColumns(c1, c2, c3) {
+        return new Matrix3([c1[0], c2[0], c3[0]], [c1[1], c2[1], c3[1]], [c1[2], c2[2], c3[2]]);
+    }
+    /**
+     * Multiple to column vector.
+     */
+    mulVec(that) {
+        return [
+            Vec3_1.innerProd(this.m[0], that),
+            Vec3_1.innerProd(this.m[1], that),
+            Vec3_1.innerProd(this.m[2], that)
+        ];
+    }
+    /**
+     * Get nth column vector.
+     */
+    col(n) {
+        return [
+            this.m[0][n],
+            this.m[1][n],
+            this.m[2][n]
+        ];
+    }
+    mul(that) {
+        let c1 = this.mulVec(that.col(0));
+        let c2 = this.mulVec(that.col(1));
+        let c3 = this.mulVec(that.col(2));
+        return Matrix3.fromColumns(c1, c2, c3);
+    }
+}
+exports.Matrix3 = Matrix3;
+
+},{"./Vec3":8}],8:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
+function innerProd(v1, v2) {
+    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+}
+exports.innerProd = innerProd;
+
+},{}],9:[function(require,module,exports){
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("./Affine"));
+__export(require("./Vec3"));
+
+},{"./Affine":6,"./Vec3":8}],10:[function(require,module,exports){
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("./SvgManager"));
+__export(require("./utils"));
+__export(require("./Vec2"));
+__export(require("./parsers"));
+__export(require("./Option"));
+__export(require("./affine"));
+
+},{"./Option":2,"./SvgManager":4,"./Vec2":5,"./affine":9,"./parsers":11,"./utils":15}],11:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const yaparsec_1 = require("yaparsec");
 function parsePoints(attr) {
@@ -213,30 +470,43 @@ function genD(pathOps) {
     }).join(" ");
 }
 exports.genD = genD;
-function parseStyle(attr) {
-    let styleName = yaparsec_1.r(/[^:\s]+/);
-    let styleValue = yaparsec_1.r(/[^;\s]+/);
-    let stylePair = styleName.then(() => styleValue);
-    let style = {};
-    stylePair.rep().of(attr).getResult().forEach(pair => {
-        style[pair[0]] = pair[1];
-    });
-    return style;
+/**
+ * Parse transform property of SVG
+ */
+function parseTransform(transformProperty) {
+    let tfns = [];
+    let tfn = {
+        kind: undefined,
+        args: []
+    };
+    let str = null;
+    let identify = /[^\s(),]+/g;
+    while (str = identify.exec(transformProperty)) {
+        let matched = str[0];
+        if (matched.match(/[a-zA-Z]+/)) {
+            if (tfn.kind) {
+                tfns.push(tfn);
+                tfn = { kind: undefined, args: [] };
+                tfn.kind = matched;
+            }
+            else {
+                tfn.kind = matched;
+            }
+        }
+        else {
+            tfn.args.push(+matched);
+        }
+    }
+    tfns.push(tfn);
+    return tfns;
 }
-exports.parseStyle = parseStyle;
-function genStyle(style) {
-    let ret = "";
-    Object.keys(style).forEach(key => {
-        ret += `${key}: ${style[key]};`;
-    });
-    return ret;
-}
-exports.genStyle = genStyle;
+exports.parseTransform = parseTransform;
 
-},{"yaparsec":11}],6:[function(require,module,exports){
+},{"yaparsec":19}],12:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const SvgManager_1 = require("./SvgManager");
 const tinycolor = require("tinycolor2");
+const index_1 = require("./index");
 function log(name, obj) {
     console.log(name + ": " + JSON.stringify(obj));
 }
@@ -252,8 +522,123 @@ log("color stroke", SvgManager_1.svgof(circle2).color("stroke"));
 log("color stroke", SvgManager_1.svgof(circle3).color("stroke"));
 SvgManager_1.svgof(circle3).color("stroke", tinycolor("#666644"));
 log("color set stroke", SvgManager_1.svgof(circle3).color("stroke"));
+SvgManager_1.svgof(circle2).matrix(index_1.Affine.scale([2, 1]));
+log("size", SvgManager_1.svgof(circle3).size());
+SvgManager_1.svgof(circle3).size([400, 200]);
 
-},{"./SvgManager":3,"tinycolor2":8}],7:[function(require,module,exports){
+},{"./SvgManager":4,"./index":10,"tinycolor2":16}],13:[function(require,module,exports){
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+Object.defineProperty(exports, "__esModule", { value: true });
+__export(require("./transforms"));
+
+},{"./transforms":14}],14:[function(require,module,exports){
+Object.defineProperty(exports, "__esModule", { value: true });
+const utils_1 = require("../utils");
+const index_1 = require("../index");
+/**
+ * Unify the same kind of transformation
+ */
+function compressCognate(transformFns) {
+    normalize(transformFns);
+    let ret = [transformFns[0]];
+    for (let i = 1; i < transformFns.length; i++) {
+        if (ret[ret.length - 1].kind === transformFns[i].kind) {
+            switch (transformFns[i].kind) {
+                case "translate":
+                    ret[ret.length - 1].args = utils_1.zip(ret[ret.length - 1].args, transformFns[i].args).map(pair => pair[0] + pair[1]);
+                    break;
+                case "scale":
+                    ret[ret.length - 1].args = utils_1.zip(ret[ret.length - 1].args, transformFns[i].args).map(pair => pair[0] * pair[1]);
+                    break;
+                case "rotate":
+                    ret[ret.length - 1].args = [ret[ret.length - 1].args[0] + transformFns[i].args[0]];
+                    break;
+                case "skewX":
+                case "skewY":
+                    let a = ret[ret.length - 1].args[0];
+                    let b = transformFns[i].args[0];
+                    ret[ret.length - 1].args = [
+                        Math.atan(Math.tan(a) + Math.tan(b))
+                    ];
+                    break;
+                case "matrix":
+                    let mat1 = ret[ret.length - 1].args;
+                    let mat2 = transformFns[i].args;
+                    ret[ret.length - 1].args =
+                        [
+                            mat1[0] * mat2[0] + mat1[2] * mat2[1],
+                            mat1[1] * mat2[0] + mat1[3] * mat2[1],
+                            mat1[0] * mat2[2] + mat1[2] * mat2[3],
+                            mat1[1] * mat2[2] + mat1[3] * mat2[3],
+                            mat1[4] + mat1[0] * mat2[4] + mat1[2] * mat2[5],
+                            mat1[5] + mat1[1] * mat2[4] + mat1[3] * mat2[5]
+                        ];
+                    break;
+            }
+        }
+        else {
+            ret.push(transformFns[i]);
+        }
+    }
+    return ret;
+}
+exports.compressCognate = compressCognate;
+/**
+ * Reveal the implicit arguments
+ */
+function normalize(transformFns) {
+    transformFns.forEach((fn, i) => {
+        switch (fn.kind) {
+            case "translate":
+                if (fn.args.length === 1) {
+                    fn.args.push(0);
+                }
+                break;
+            case "scale":
+                if (fn.args.length === 1) {
+                    fn.args.push(fn.args[0]);
+                }
+                break;
+            case "rotate":
+                if (fn.args.length === 3) {
+                    transformFns.splice(i, 1, { kind: "translate", args: [fn.args[1], fn.args[2]] }, { kind: "rotate", args: [fn.args[0]] }, { kind: "translate", args: [-fn.args[1], -fn.args[2]] });
+                }
+                break;
+            default:
+                break;
+        }
+    });
+}
+exports.normalize = normalize;
+/**
+ * Unify transform functions to one affine transform matrix
+ */
+function unifyToAffine(transformFns) {
+    let tfns = transformFns;
+    normalize(tfns);
+    let affines = tfns.map(tfn => {
+        switch (tfn.kind) {
+            case "translate":
+                return index_1.Affine.translate([tfn.args[0], tfn.args[1]]);
+            case "scale":
+                return index_1.Affine.scale([tfn.args[0], tfn.args[1]]);
+            case "rotate":
+                return index_1.Affine.rotate(tfn.args[0]);
+            case "skewX":
+                return index_1.Affine.skewX(tfn.args[0]);
+            case "skewY":
+                return index_1.Affine.skewX(tfn.args[0]);
+            case "matrix":
+                return new index_1.Affine([tfn.args[0], tfn.args[2], tfn.args[4]], [tfn.args[1], tfn.args[3], tfn.args[5]]);
+        }
+    });
+    return affines.reduce((p, c) => p.mulAffine(c));
+}
+exports.unifyToAffine = unifyToAffine;
+
+},{"../index":10,"../utils":15}],15:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 function nonNull(value, defaultValue) {
     if (value === null) {
@@ -273,8 +658,16 @@ function nonUndefined(value, defaultValue) {
     }
 }
 exports.nonUndefined = nonUndefined;
+function zip(a, b) {
+    let ret = [];
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+        ret.push([a[i], b[i]]);
+    }
+    return ret;
+}
+exports.zip = zip;
 
-},{}],8:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 // TinyColor v1.4.1
 // https://github.com/bgrins/TinyColor
 // Brian Grinstead, MIT License
@@ -1471,7 +1864,7 @@ else {
 
 })(Math);
 
-},{}],9:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
  * Input for parsers.
@@ -1492,7 +1885,7 @@ class Input {
 }
 exports.Input = Input;
 
-},{}],10:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 Object.defineProperty(exports, "__esModule", { value: true });
 const Input_1 = require("./Input");
 /**
@@ -1784,7 +2177,7 @@ function rep1sep(p, sep) {
 }
 exports.rep1sep = rep1sep;
 
-},{"./Input":9}],11:[function(require,module,exports){
+},{"./Input":17}],19:[function(require,module,exports){
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
@@ -1793,7 +2186,7 @@ __export(require("./Parser"));
 __export(require("./parsers"));
 __export(require("./Input"));
 
-},{"./Input":9,"./Parser":10,"./parsers":12}],12:[function(require,module,exports){
+},{"./Input":17,"./Parser":18,"./parsers":20}],20:[function(require,module,exports){
 /**
  * Other useful parsers.
  */
@@ -1858,4 +2251,4 @@ exports.integer = regex(/[+-]?\d+/).map(elem => Number(elem)).named("integer");
  */
 exports.email = regex(/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*/).named("email");
 
-},{"./Parser":10}]},{},[6]);
+},{"./Parser":18}]},{},[12]);

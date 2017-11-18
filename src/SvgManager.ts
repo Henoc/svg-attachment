@@ -5,7 +5,8 @@ import { optional } from "./Option";
 import * as tinycolor from "tinycolor2";
 import { TransformFn, unifyToAffine } from "./transform";
 import { compressCognate } from "./transform/transforms";
-import { parseTransform, Affine } from "./index";
+import { parseTransform, Affine, divdot } from "./index";
+import { sizeof } from "./SizeManager";
 
 export class SvgManager {
   constructor(public node: SVGElement) {}
@@ -24,7 +25,7 @@ export class SvgManager {
   /**
    * Attributes setter which can use current value.
    */
-  attrFn(name: string, fn: (v: string | undefined) => string): string | undefined {
+  attrFn(name: string, fn: (v: string | undefined) => string | undefined): string | undefined {
     return this.attr(name, fn(this.attr(name)));
   }
   getBBox(): ClientRect {
@@ -70,6 +71,26 @@ export class SvgManager {
       return vec2;
     }
   }
+
+  /**
+   * Get and set width and height. Getter is by BoundingBox.
+   */
+  size(vec2?: Vec2): Vec2 {
+    if (vec2 === undefined) {
+      return [this.getBBox().width, this.getBBox().height];
+    } else {
+      sizeof(this.node).zoom(divdot(vec2, this.size()));
+      return vec2;
+    }
+  }
+
+  /**
+   * Zoom the shape without transform attributes. If only raito fixed zoom is accepted, value of `ratio[0]` is applied.
+   */
+  zoom(ratio: Vec2): void {
+    sizeof(this.node).zoom(ratio);
+  }
+
   /**
    * Get or set color of fill/stroke with opacity. In getter, source function is `getComputedStyle`. Return undefined if there is `none` color.
    */

@@ -1,5 +1,6 @@
 import { svgof } from "./SvgManager";
 import * as tinycolor from "tinycolor2";
+import { Affine } from "./index";
 
 function log(name: string, obj: any) {
   console.log(name + ": " + JSON.stringify(obj));
@@ -18,5 +19,7 @@ log("color stroke",  svgof(circle2).color("stroke"));
 log("color stroke",  svgof(circle3).color("stroke"));
 svgof(circle3).color("stroke", tinycolor("#666644"));
 log("color set stroke", svgof(circle3).color("stroke"));
-
+svgof(circle2).matrix(Affine.scale([2, 1]));
+log("size", svgof(circle3).size());
+svgof(circle3).size([400, 200]);
 
