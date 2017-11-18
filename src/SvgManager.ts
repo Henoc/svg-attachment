@@ -33,7 +33,7 @@ export class SvgManager {
   }
 
   /**
-   * Left top of shape. Getter is by BoundingBox.
+   * Left top of shape. Getter is by BoundingClientRect.
    */
   leftTop(vec2?: Vec2): Vec2 {
     if (vec2 === undefined) {
@@ -46,7 +46,7 @@ export class SvgManager {
   }
 
   /**
-   * Right bottm of shape. Getter is by BoundingBox.
+   * Right bottm of shape. Getter is by BoundingClientRect.
    */
   rightBottom(vec2?: Vec2): Vec2 {
     if (vec2 === undefined) {
@@ -59,7 +59,7 @@ export class SvgManager {
   }
 
   /**
-   * Center position of shape. Getter is by BoundingBox.
+   * Center position of shape. Getter is by BoundingClientRect.
    */
   center(vec2?: Vec2): Vec2 {
     if (vec2 === undefined) {
@@ -73,7 +73,7 @@ export class SvgManager {
   }
 
   /**
-   * Get and set width and height. Getter is by BoundingBox.
+   * Get and set width and height. Getter is by BoundingClientRect.
    */
   size(vec2?: Vec2): Vec2 {
     if (vec2 === undefined) {

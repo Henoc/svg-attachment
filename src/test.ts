@@ -1,6 +1,6 @@
 import { svgof } from "./SvgManager";
 import * as tinycolor from "tinycolor2";
-import { Affine } from "./index";
+import { Affine, collectionof } from "./index";
 
 function log(name: string, obj: any) {
   console.log(name + ": " + JSON.stringify(obj));
@@ -10,16 +10,5 @@ let circle = <any>document.getElementById("circle");
 let circle2 = <any>document.getElementById("circle2");
 let circle3 = <any>document.getElementById("circle3");
 
-log("leftTop", svgof(circle).leftTop());
-log("rightBottom", svgof(circle).rightBottom());
-log("attr fill", svgof(circle).attr("fill"));
-log("color fill",  svgof(circle).color("fill"));
-log("color fill",  svgof(circle2).color("fill"));
-log("color stroke",  svgof(circle2).color("stroke"));
-log("color stroke",  svgof(circle3).color("stroke"));
-svgof(circle3).color("stroke", tinycolor("#666644"));
-log("color set stroke", svgof(circle3).color("stroke"));
-svgof(circle2).matrix(Affine.scale([2, 1]));
-log("size", svgof(circle3).size());
-svgof(circle3).size([400, 200]);
-
+log("box", collectionof([circle, circle2, circle3]).size());
+collectionof([circle, circle2, circle3]).size([200, 400]);
