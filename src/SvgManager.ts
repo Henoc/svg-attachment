@@ -3,9 +3,9 @@ import { Vec2, sub } from "./Vec2";
 import { moveof } from "./MoveManager";
 import { optional } from "./Option";
 import * as tinycolor from "tinycolor2";
-import { TransformFn } from "./transform";
+import { TransformFn, unifyToAffine } from "./transform";
 import { compressCognate } from "./transform/transforms";
-import { parseTransform } from "./index";
+import { parseTransform, Affine } from "./index";
 
 export class SvgManager {
   constructor(public node: SVGElement) {}
@@ -144,6 +144,19 @@ export class SvgManager {
       "transform",
       `${attr.map(fn => fn.kind + "(" + fn.args.join(" ") + ")")}})`
     );
+  }
+
+  /**
+   * Get or set as one affine transform matrix
+   */
+  matrix(affine?: Affine): Affine {
+    if (affine === undefined) {
+      let tfns = this.transform();
+      return tfns ? unifyToAffine(tfns) : Affine.unit();
+    } else {
+      this.attr("transform", `matrix(${affine.col(0)[0]} ${affine.col(0)[1]} ${affine.col(1)[0]} ${affine.col(1)[1]} ${affine.col(2)[0]} ${affine.col(2)[1]})`);
+      return affine;
+    }
   }
 }
 
