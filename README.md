@@ -23,6 +23,8 @@ console.log(JSON.stringify(
 ));
 ```
 
+Full js file is `dest/svg-attachment.js`
+
 ## Contents
 
 `svg` function makes a `RootManager` instance. `RootManager` has some methods that derives more managers.
@@ -37,7 +39,7 @@ Below functions are methods derived by `svgof(node: SVGElement)`. Many functions
 |attrFn(name: string, fn: (v: string \| undefined) => string)|string \| undefined| Attributes setter which can use current value |
 |getBBox()|ClientRect|Get bounding box|
 |leftTop(vec2?: Vec2)|Vec2| Get or set left top position of shape|
-|rightDown(vec2?: Vec2)|Vec2| |
+|rightBottom(vec2?: Vec2)|Vec2| |
 |center(vec2?: Vec2)|Vec2| |
 |size(vec2?: Vec2)|Vec2| Get or set width and height, introduced by BoundingClientRect method. |
 |zoom(ratio: Vec2)|void| Zoom the shape without transform attributes. If only raito fixed zoom is accepted, value of `ratio[0]` is applied. |

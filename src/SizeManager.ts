@@ -2,7 +2,7 @@ import { Vec2, optional, nonUndefined, parsePoints, add, muldot, PathOperator, p
 import { RootManager } from "./RootManager";
 
 export class SizeManager {
-  constructor(public root: RootManager, public node: SVGElement) {}
+  constructor(public root: RootManager, public node: HTMLElement) {}
 
   /**
    * 図形中心を中心として縮尺を変更する

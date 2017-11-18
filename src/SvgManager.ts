@@ -8,7 +8,7 @@ import { parseTransform, Affine, divdot } from "./index";
 import { RootManager } from "./RootManager";
 
 export class SvgManager {
-  constructor(public root: RootManager, public node: SVGElement) {}
+  constructor(public root: RootManager, public node: HTMLElement) {}
   /**
    * Getter and setter of attributes. Remove an attribute if value is undefined.
    */

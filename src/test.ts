@@ -1,19 +1,18 @@
 import * as tinycolor from "tinycolor2";
 import { Affine } from "./index";
 import { svg } from "./RootManager";
+import * as SVG from "svgjs";
+let expect =  require("expect.js");
 
-function log(name: string, obj: any) {
-  console.log(name + ": " + JSON.stringify(obj));
-}
+let doc = SVG("mocha").size(400, 400);
+let circle = doc.circle(50).move(0, 0);
 
-let circle = <any>document.getElementById("circle");
-let circle2 = <any>document.getElementById("circle2");
-let circle3 = <any>document.getElementById("circle3");
+let root = svg(doc.node);
 
-let root = svg(document.getElementById("svg")!);
-log("1", root.svgof(circle).center());
-log("2", root.svgof(circle2).leftTop());
-log("3", root.svgof(circle3).rightBottom());
+it("svgof", () => {
+  expect(root.svgof(circle.node).leftTop()).to.eql([0, 0]);
+  expect(root.svgof(circle.node).rightBottom()).to.eql([50, 50]);
+  expect(root.svgof(circle.node).center()).to.eql([25, 25]);
+});
 
-log("box", root.collectionof([circle, circle2, circle3]).center());
-root.collectionof([circle, circle2, circle3]).size([200, 400]);
+

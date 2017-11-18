@@ -7,7 +7,7 @@ import { RootManager } from "../RootManager";
  */
 export class CollectionManager {
 
-  constructor(public root: RootManager, public svgs: SVGElement[]) {
+  constructor(public root: RootManager, public svgs: HTMLElement[]) {
   }
 
   private makeBox(): Box {

@@ -1,6 +1,6 @@
 {
   "name": "svg-attachment",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "utilities of svg",
   "scripts": {
     "prepublish": "npm run compile",
@@ -27,10 +27,14 @@
     "yaparsec": "^1.1.0"
   },
   "devDependencies": {
-    "@types/jest": "^20.0.5",
-    "@types/jsdom": "^11.0.4",
+    "@types/expect.js": "^0.3.29",
+    "@types/mocha": "^2.2.44",
+    "@types/node": "^8.0.53",
     "browserify": "^14.5.0",
+    "expect.js": "^0.3.1",
+    "mocha": "^4.0.1",
     "rimraf": "^2.6.1",
+    "svgjs": "^2.6.2",
     "tslint": "^5.4.3",
     "typescript": "^2.3.4"
   }
