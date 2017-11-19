@@ -382,6 +382,17 @@ class SvgManager {
             return affine;
         }
     }
+    /**
+     * Return all matched elements that is a descendant of this element
+     */
+    select(query) {
+        let lst = this.node.querySelectorAll(query);
+        let ret = [];
+        for (let i = 0; i < lst.length; i++) {
+            ret.push(lst.item(i));
+        }
+        return ret;
+    }
 }
 exports.SvgManager = SvgManager;
 

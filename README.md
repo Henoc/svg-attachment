@@ -44,8 +44,10 @@ Below functions are methods derived by `svgof(node: SVGElement)`. Many functions
 |size(vec2?: Vec2)|Vec2| Get or set width and height, introduced by BoundingClientRect method. |
 |zoom(ratio: Vec2)|void| Zoom the shape without transform attributes. If only raito fixed zoom is accepted, value of `ratio[0]` is applied. |
 |color(fillstroke: "fill" \| "stroke", colorInstance?: tinycolorInstance) |tinycolorInstance \| undefined| Get or set color of fill/stroke with opacity. In getter, source function is `getComputedStyle`. Return undefined if there is `none` color. |
+|style(name: string, value?: string)|string \| undefined| Get computed style (undefined if value is undefined or "none") or set value to the style attribute |
 |transform(transformfns?: TransformFn[])|TransformFn[] \| undefined| Get or set transform attribute |
 |matrix(affine?: Affine)|Affine| Get or set as one matrix function |
+|select(query: string)|Element[]| Return all matched elements that is a descendant of this element |
 
 ### Functions of CollectionManager
 

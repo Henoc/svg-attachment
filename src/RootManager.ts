@@ -13,36 +13,36 @@ export class RootManager {
   public size: Vec2;
   public rightBottom: Vec2;
 
-  constructor(public svgroot: HTMLElement) {
+  constructor(public svgroot: Element) {
     let clientRect = this.svgroot.getBoundingClientRect();
     this.leftTop = [clientRect.left, clientRect.top];
     this.size = [clientRect.width, clientRect.height];
     this.rightBottom = [clientRect.right, clientRect.bottom];
   }
 
-  svgof(node: HTMLElement): SvgManager {
+  svgof(node: Element): SvgManager {
     return new SvgManager(this, node);
   }
 
   /**
    * Internal use only
    */
-  sizeof(node: HTMLElement): SizeManager {
+  sizeof(node: Element): SizeManager {
     return new SizeManager(this, node);
   }
 
   /**
    * Internal use only
    */
-  moveof(node: HTMLElement): MoveManager {
+  moveof(node: Element): MoveManager {
     return new MoveManager(this, node);
   }
 
-  collectionof(nodes: HTMLElement[]): CollectionManager {
+  collectionof(nodes: Element[]): CollectionManager {
     return new CollectionManager(this, nodes);
   }
 
-  vertexof(node: HTMLElement): VertexManager {
+  vertexof(node: Element): VertexManager {
     return new VertexManager(this, node);
   }
 }
@@ -50,6 +50,6 @@ export class RootManager {
 /**
  * Make `RootManager` instance
  */
-export function svg(svgroot: HTMLElement): RootManager {
+export function svg(svgroot: Element): RootManager {
   return new RootManager(<any>svgroot);
 }

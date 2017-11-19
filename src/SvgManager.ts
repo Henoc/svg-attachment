@@ -9,7 +9,7 @@ import { RootManager } from "./RootManager";
 import { parseStyle, Style } from "./parsers";
 
 export class SvgManager {
-  constructor(public root: RootManager, public node: HTMLElement) {}
+  constructor(public root: RootManager, public node: Element) {}
   /**
    * Getter and setter of attributes. Remove an attribute if value is undefined.
    */
@@ -108,8 +108,8 @@ export class SvgManager {
         if (opacity) tcolor.setAlpha(+opacity);
         return tcolor;
       } else {
-        this.node.style.fill = colorInstance.toHexString();
-        this.node.style.fillOpacity = colorInstance.getAlpha() + "";
+        (<HTMLElement>this.node).style.fill = colorInstance.toHexString();
+        (<HTMLElement>this.node).style.fillOpacity = colorInstance.getAlpha() + "";
         return colorInstance;
       }
     } else {
@@ -121,8 +121,8 @@ export class SvgManager {
         if (opacity) tcolor.setAlpha(+opacity);
         return tcolor;
       } else {
-        this.node.style.stroke = colorInstance.toHexString();
-        this.node.style.strokeOpacity = colorInstance.getAlpha() + "";
+        (<HTMLElement>this.node).style.stroke = colorInstance.toHexString();
+        (<HTMLElement>this.node).style.strokeOpacity = colorInstance.getAlpha() + "";
         return colorInstance;
       }
     }
@@ -137,7 +137,7 @@ export class SvgManager {
       if (st[name] === undefined || st[name] === "none") return undefined;
       else return st[name];
     } else {
-      this.node.style[name] = value;
+      (<HTMLElement>this.node).style[name] = value;
       return value;
     }
   }
@@ -196,5 +196,17 @@ export class SvgManager {
       this.attr("transform", `matrix(${affine.col(0)[0]} ${affine.col(0)[1]} ${affine.col(1)[0]} ${affine.col(1)[1]} ${affine.col(2)[0]} ${affine.col(2)[1]})`);
       return affine;
     }
+  }
+
+  /**
+   * Return all matched elements that is a descendant of this element
+   */
+  select(query: string): Element[] {
+    let lst = this.node.querySelectorAll(query);
+    let ret: Element[] = [];
+    for (let i = 0; i < lst.length; i++) {
+      ret.push(lst.item(i));
+    }
+    return ret;
   }
 }

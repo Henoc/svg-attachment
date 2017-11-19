@@ -5,7 +5,7 @@ import { optional } from "./Option";
 import { RootManager } from "./RootManager";
 
 export class MoveManager {
-  constructor(public root: RootManager, public node: HTMLElement) {}
+  constructor(public root: RootManager, public node: Element) {}
   move(delta: Vec2) {
     switch (this.node.tagName) {
       case "circle":

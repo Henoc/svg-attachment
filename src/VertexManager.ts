@@ -3,7 +3,7 @@ import { Vec2, nonUndefined } from "./index";
 import { parsePoints, parseD } from "./parsers";
 
 export class VertexManager {
-  constructor(public root: RootManager, public node: HTMLElement) {}
+  constructor(public root: RootManager, public node: Element) {}
 
   vertexes(vec2s?: Vec2[]): Vec2[] | undefined {
     if (vec2s === undefined) {
