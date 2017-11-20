@@ -96,33 +96,43 @@ export class SvgManager {
   }
 
   /**
-   * Get or set color of fill/stroke with opacity. In getter, source function is `getComputedStyle`. Return undefined if there is `none` color.
+   * Get or set color of fill/stroke with opacity. In getter, source function is `getComputedStyle`. Return none if there is `none` color.
    */
-  color(fillstroke: "fill" | "stroke", colorInstance?: tinycolorInstance): tinycolorInstance | undefined {
+  color(fillstroke: "fill" | "stroke", colorInstance?: tinycolorInstance | "none"): tinycolorInstance | "none" {
     if (fillstroke === "fill") {
       if (colorInstance === undefined) {
         let style = window.getComputedStyle(this.node);
-        if (style.fill === null || style.fill === "none") return undefined;
+        if (style.fill === null || style.fill === "none" || style.fill === "") return "none";
         let tcolor = tinycolor(style.fill);
         let opacity = style.fillOpacity;
         if (opacity) tcolor.setAlpha(+opacity);
         return tcolor;
       } else {
-        (<HTMLElement>this.node).style.fill = colorInstance.toHexString();
-        (<HTMLElement>this.node).style.fillOpacity = colorInstance.getAlpha() + "";
+        if (colorInstance === "none") {
+          (<HTMLElement>this.node).style.fill = null;
+          (<HTMLElement>this.node).style.fillOpacity = null;
+        } else {
+          (<HTMLElement>this.node).style.fill = colorInstance.toHexString();
+          (<HTMLElement>this.node).style.fillOpacity = colorInstance.getAlpha() + "";
+        }
         return colorInstance;
       }
     } else {
       if (colorInstance === undefined) {
         let style = window.getComputedStyle(this.node);
-        if (style.stroke === null || style.stroke === "none") return undefined;
+        if (style.stroke === null || style.stroke === "none" || style.stroke === "") return "none";
         let tcolor = tinycolor(style.stroke);
         let opacity = style.strokeOpacity;
         if (opacity) tcolor.setAlpha(+opacity);
         return tcolor;
       } else {
-        (<HTMLElement>this.node).style.stroke = colorInstance.toHexString();
-        (<HTMLElement>this.node).style.strokeOpacity = colorInstance.getAlpha() + "";
+        if (colorInstance === "none") {
+          (<HTMLElement>this.node).style.fill = null;
+          (<HTMLElement>this.node).style.fillOpacity = null;
+        } else {
+          (<HTMLElement>this.node).style.fill = colorInstance.toHexString();
+          (<HTMLElement>this.node).style.fillOpacity = colorInstance.getAlpha() + "";
+        }
         return colorInstance;
       }
     }
@@ -134,7 +144,7 @@ export class SvgManager {
   style(name: string, value?: string): string | undefined {
     if (value === undefined) {
       let st = window.getComputedStyle(this.node);
-      if (st[name] === undefined || st[name] === "none") return undefined;
+      if (st[name] === undefined || st[name] === "none" || st[name] === "") return undefined;
       else return st[name];
     } else {
       (<HTMLElement>this.node).style[name] = value;
